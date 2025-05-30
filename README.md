@@ -1,4 +1,3 @@
-
 # DoorbellPi: Smart Raspberry Pi Doorbell System
 
 DoorbellPi is a Raspberry Pi-based smart doorbell system featuring:
@@ -15,14 +14,104 @@ DoorbellPi is a Raspberry Pi-based smart doorbell system featuring:
 
 - Raspberry Pi 4 or 5 (Raspberry Pi OS)
 - Momentary push-button (connected between GPIO17 and GND)
-- 4-pin common cathode RGB LED with current-limiting resistors wired to:
-  - Red → GPIO16
-  - Green → GPIO20
-  - Blue → GPIO21
+- 4-pin common cathode RGB LED with three 220Ω–330Ω resistors:
+  - Red → GPIO16 → resistor → Red LED leg
+  - Green → GPIO20 → resistor → Green LED leg
+  - Blue → GPIO21 → resistor → Blue LED leg
+  - Longest leg (common cathode) → GND
 - Bluetooth speaker (optional)
 
 > ⚠️ Do **not** directly connect wires from a traditional transformer-powered doorbell circuit.
 > Use a separate button or an optocoupler if interfacing with high-voltage or powered systems.
+
+---
+
+## 📁 Initial Folder Setup
+
+Before running the conversion or deployment steps, create the folder structure:
+
+```bash
+mkdir -p sounds/mp3
+```
+
+Place your `.mp3` doorbell sounds in the `sounds/mp3/` directory.
+
+---
+
+## 🧲 GPIO Input Configuration Note
+
+To ensure your GPIO pin correctly detects button presses (instead of constantly reading as `0`), configure the pin with an internal pull-up resistor using `/boot/firmware/config.txt`.
+
+### Persistent Method (Recommended)
+
+Edit the Raspberry Pi's config file:
+
+```bash
+sudo nano /boot/firmware/config.txt
+```
+
+> On older systems or legacy Pi OS, the path may be:
+> ```bash
+> /boot/config.txt
+> ```
+
+Add the following line at the bottom:
+
+```bash
+dtparam=gpio17=ip,pu
+```
+
+Then reboot:
+
+```bash
+sudo reboot
+```
+
+This sets GPIO17 as input (`ip`) with a pull-up resistor (`pu`), ensuring stable behavior across boots.
+
+---
+
+## 📶 Bluetooth Speaker Setup
+
+To pair a Bluetooth speaker:
+
+1. Start the Bluetooth CLI tool:
+
+   ```bash
+   bluetoothctl
+   ```
+
+2. Inside the prompt:
+
+   ```bash
+   power on
+   agent on
+   default-agent
+   scan on
+   ```
+
+   Wait for your device to appear, then:
+
+   ```bash
+   pair XX:XX:XX:XX:XX:XX
+   trust XX:XX:XX:XX:XX:XX
+   connect XX:XX:XX:XX:XX:XX
+   exit
+   ```
+
+3. Check the sink name for PulseAudio:
+
+   ```bash
+   pactl list short sinks
+   ```
+
+   Use the listed sink name (e.g., `bluez_output.XX_XX_XX_XX_XX_XX.a2dp-sink`) in your script as the `bluetooth_sink` value.
+
+> Ensure the PulseAudio service is running under your user context (e.g. `pi`):
+>
+> ```bash
+> systemctl --user start pulseaudio.service
+> ```
 
 ---
 
@@ -41,11 +130,7 @@ cd DoorbellPi
 
 ### 2. Convert MP3 Sounds to WAV
 
-Place `.mp3` files in `sounds/mp3/`, then run:
-
 ```bash
-mkdir -p sounds
-mkdir -p sounds/mp3
 for f in sounds/mp3/*.mp3; do
   base=$(basename "$f" .mp3)
   ffmpeg -y -loglevel error -i "$f" "sounds/$base.wav" && rm "$f"
