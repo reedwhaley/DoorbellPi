@@ -1,0 +1,16 @@
+[Unit]
+Description=Smart Doorbell Script
+After=network.target sound.target
+
+[Service]
+ExecStart=/opt/doorbell/doorbell.sh
+WorkingDirectory=/opt/doorbell
+StandardOutput=append:/opt/doorbell/doorbell_output.log
+StandardError=append:/opt/doorbell/doorbell_error.log
+Restart=always
+User=pi
+Environment="PULSE_RUNTIME_PATH=/run/user/1000/pulse"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+
+[Install]
+WantedBy=multi-user.target
